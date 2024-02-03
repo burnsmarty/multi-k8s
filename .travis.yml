@@ -1,0 +1,40 @@
+sudo: required
+language: generic
+
+services:
+  - docker
+
+before_install:
+  - curl https://sdk.cloud.google.com | bash > /dev/null
+  - souce $HOME/google-cloud-sdk/path.bash.inc
+  - gloud components update kubectl
+  - gcloud auth activate-service-account --key-file service-account.json
+
+  - docker build -t burnsmarty/react-test -f ./client/Dockerfile.dev ./client
+
+script:
+  - docker run -e CI=true burnsmarty/react-test npm run test
+
+after_success:
+  - docker build -t burnsmarty/multi-client ./client
+  - docker build -t burnsmarty/multi-nginx ./nginx
+  - docker build -t burnsmarty/multi-server ./server
+  - docker build -t burnsmarty/multi-worker ./worker
+  # login to dockerhub and push images - test with pat
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_ID" --password-stdin
+  - docker push burnsmarty/multi-client
+  - docker push burnsmarty/multi-nginx
+  - docker push burnsmarty/multi-server
+  - docker push burnsmarty/multi-worker
+
+deploy:
+  provider: elasticbeanstalk
+  region: "us-east-1"
+  app: "multi-docker"
+  env: "Multi-docker-env"
+  bucket_name: "elasticbeanstalk-us-east-1-159779776886"
+  bucket_path: "docker-multi"
+  on:
+    branch: main
+  access_key_id: $AWS_ACCESS_KEY
+  secret_access_key: "$AWS_SECRET_KEY"
