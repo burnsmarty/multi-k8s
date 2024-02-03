@@ -4,37 +4,30 @@ language: generic
 services:
   - docker
 
+env:
+  global:
+    - SHA=$(git rev-parse HEAD)
+    - CLOUDSDK_CORE_DISABLE_PROMPTS=1
+
 before_install:
+  - openssl aes-256-cbc -K $encrypted_9f3b5599b056_key -iv $encrypted_9f3b5599b056_iv -in service-account.json.enc -out service-account.json -d
   - curl https://sdk.cloud.google.com | bash > /dev/null
   - souce $HOME/google-cloud-sdk/path.bash.inc
   - gloud components update kubectl
   - gcloud auth activate-service-account --key-file service-account.json
 
+  - gcloud config set project multi-k8s-413113
+  - gcloud config set compute/zone us-east1-b
+  - gcloud container clusters get-credentials multi-cluster
+
+  - eche "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
   - docker build -t burnsmarty/react-test -f ./client/Dockerfile.dev ./client
 
 script:
   - docker run -e CI=true burnsmarty/react-test npm run test
 
-after_success:
-  - docker build -t burnsmarty/multi-client ./client
-  - docker build -t burnsmarty/multi-nginx ./nginx
-  - docker build -t burnsmarty/multi-server ./server
-  - docker build -t burnsmarty/multi-worker ./worker
-  # login to dockerhub and push images - test with pat
-  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_ID" --password-stdin
-  - docker push burnsmarty/multi-client
-  - docker push burnsmarty/multi-nginx
-  - docker push burnsmarty/multi-server
-  - docker push burnsmarty/multi-worker
-
 deploy:
-  provider: elasticbeanstalk
-  region: "us-east-1"
-  app: "multi-docker"
-  env: "Multi-docker-env"
-  bucket_name: "elasticbeanstalk-us-east-1-159779776886"
-  bucket_path: "docker-multi"
+  provider: script
+  script: bash ./deploy.sh
   on:
     branch: main
-  access_key_id: $AWS_ACCESS_KEY
-  secret_access_key: "$AWS_SECRET_KEY"
