@@ -1,5 +1,5 @@
 sudo: required
-language: generic
+dist: focal
 
 services:
   - docker
