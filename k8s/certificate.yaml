@@ -1,0 +1,14 @@
+apiVersion: cert-manager.io/v1
+
+kind: Certificate
+metadata:
+  name: burnslink-org-tls
+spec:
+  secretName: burnslink-org-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  commonName: burnslink.org
+  dnsNames:
+    - burnslink.org
+    - www.burnslink.org
